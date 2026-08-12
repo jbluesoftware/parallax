@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Parallax Ollama Chat</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="light">
+    <main class="page-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Parallax</p>
+          <h1>Ollama Chat</h1>
+        </div>
+        <div class="toolbar">
+          <label class="select-wrap">
+            Model
+            <select id="modelSelect"></select>
+          </label>
+          <button id="settingsToggle" class="secondary-btn" type="button">Settings</button>
+        </div>
+      </header>
+
+      <section class="chat-shell">
+        <p id="statusText" class="status-bar">Loading models…</p>
+        <div id="chatFeed" class="chat-feed" aria-live="polite"></div>
+        <form id="chatForm" class="chat-form">
+          <input id="messageInput" class="message-input" type="text" placeholder="Type a message or command…" />
+          <button class="primary-btn" type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <aside id="settingsPanel" class="settings-panel" aria-hidden="true">
+      <div class="settings-header">
+        <div>
+          <p class="eyebrow">Settings</p>
+          <h2>Appearance</h2>
+        </div>
+        <button id="closeSettings" class="close-btn" type="button" aria-label="Close settings">×</button>
+      </div>
+
+      <div class="settings-card">
+        <div class="radio-row">
+          <label><input type="radio" name="theme" value="light" checked /> Light</label>
+          <label><input type="radio" name="theme" value="dark" /> Dark</label>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <p class="eyebrow">Commands</p>
+        <ul class="command-box">
+          <li><code>/clear</code> — Clear the chat</li>
+          <li><code>/help</code> — List available commands</li>
+          <li><code>/imin</code> — Activate hacker mode</li>
+        </ul>
+      </div>
+    </aside>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

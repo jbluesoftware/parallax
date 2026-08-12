@@ -1,0 +1,141 @@
+:root {
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --surface: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #dbe2ea;
+  --accent: #2563eb;
+  --shadow: rgba(15, 23, 42, 0.08);
+  --user-bg: #dbeafe;
+  --assistant-bg: #e2e8f0;
+}
+
+body.dark {
+  --bg: #0f172a;
+  --panel: #111827;
+  --surface: #0b1220;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --border: #334155;
+  --accent: #60a5fa;
+  --shadow: rgba(2, 6, 23, 0.65);
+  --user-bg: rgba(96, 165, 250, 0.18);
+  --assistant-bg: rgba(148, 163, 184, 0.14);
+}
+
+body.hacker {
+  --bg: #020b08;
+  --panel: #04150e;
+  --surface: #010a06;
+  --text: #a3ffb1;
+  --muted: #5dcf78;
+  --border: #114f27;
+  --accent: #3fe866;
+  --shadow: rgba(26, 255, 103, 0.2);
+  --user-bg: rgba(63, 232, 102, 0.12);
+  --assistant-bg: rgba(32, 87, 50, 0.18);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  min-height: 100vh;
+  font-family: Inter, system-ui, sans-serif;
+  background: radial-gradient(circle at top, rgba(37, 99, 235, 0.08), transparent 26%), var(--bg);
+  color: var(--text);
+}
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+.page-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 14px 28px var(--shadow);
+  padding: 18px 22px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.eyebrow { margin: 0; color: var(--muted); font-size: 0.75rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.topbar h1 { margin: 4px 0 0; font-size: clamp(1.4rem, 3vw, 2.1rem); }
+.toolbar { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; }
+.select-wrap { display: flex; flex-direction: column; gap: 8px; color: var(--muted); }
+select {
+  min-width: 260px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.primary-btn, .secondary-btn, .close-btn {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  color: var(--text);
+}
+.primary-btn { background: var(--accent); border-color: transparent; color: white; }
+
+.chat-shell {
+  margin-top: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  box-shadow: 0 14px 28px var(--shadow);
+  padding: 18px;
+}
+.status-bar { margin: 0 0 16px; color: var(--muted); min-height: 22px; }
+.chat-feed {
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: auto;
+}
+.message {
+  max-width: 75%;
+  white-space: pre-wrap;
+  line-height: 1.55;
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+.message.user { align-self: flex-end; background: var(--user-bg); }
+.message.assistant, .message.system { align-self: flex-start; background: var(--assistant-bg); }
+.message.system { font-style: italic; opacity: 0.9; }
+.chat-form { display: flex; gap: 12px; margin-top: 16px; }
+.message-input {
+  flex: 1; min-width: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  border-radius: 14px; padding: 12px 14px;
+}
+.settings-panel {
+  position: fixed; top: 0; right: 0; width: 320px; height: 100vh; background: var(--panel); border-left: 1px solid var(--border);
+  padding: 20px; transform: translateX(100%); transition: transform 180ms ease; box-shadow: -12px 0 28px var(--shadow);
+}
+.settings-panel.open { transform: translateX(0); }
+.settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+.radio-row { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.command-box { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; color: var(--muted); }
+.command-box code { background: rgba(148, 163, 184, 0.15); border-radius: 6px; padding: 2px 6px; color: var(--text); }
+
+@media (max-width: 640px) {
+  .topbar, .chat-form { flex-direction: column; align-items: stretch; }
+  .toolbar { width: 100%; justify-content: space-between; }
+  select, .primary-btn, .secondary-btn { width: 100%; }
+  .message { max-width: 90%; }
+}
