@@ -1,138 +1,205 @@
 # Project Structure: parallax
 
-Python/tkinter desktop dashboard for monitoring and controlling AI agents on macOS.
+Web-based dashboard for monitoring and controlling AI agents. React frontend (browser-only, no desktop wrapper), FastAPI backend. Backend exposes agent logic over a REST API; frontend polls periodically for updates.
 
 ## Purpose of this file
 
-This document describes the codebase layout and the responsibility of each directory/file. Read this first before navigating or editing the codebase.
+Describes the codebase layout and the responsibility of each directory/file. Read this before navigating or editing the codebase.
 
 ## Architecture principle
 
-UI code (`app/ui/`) and business logic (`app/core/`) are strictly separated. UI code never talks to agents directly — it calls into `app/core/`, which handles process management, API calls, and polling. This keeps the UI layer swappable and the logic layer testable/reusable independent of tkinter.
+Frontend and backend are fully separate processes communicating over HTTP. The frontend holds **no** agent logic — it only calls backend REST endpoints and renders responses. The backend holds **no** UI/rendering logic — it only exposes agent state and actions as JSON. This split means either side can be rebuilt independently.
+
+Data flow: `React component → api/ client function → FastAPI route → app/core/ logic → agent`. Live updates use **periodic polling** (not WebSockets) — components re-fetch on an interval via a shared polling hook, not a persistent connection.
 
 ## Directory tree
 
 ```
 parallax/
-├── main.py
-├── requirements.txt
-├── app/
-│   ├── config.py
-│   ├── ui/
-│   │   ├── main_window.py
-│   │   ├── theme.py
-│   │   └── widgets/
-│   │       ├── agent_card.py
-│   │       ├── log_panel.py
-│   │       ├── metrics_chart.py
-│   │       └── sidebar.py
-│   ├── core/
-│   │   ├── agent_manager.py
-│   │   ├── agent_client.py
-│   │   └── scheduler.py
-│   ├── models/
-│   │   └── agent.py
-│   └── storage/
-│       └── persistence.py
-├── assets/
-│   ├── icons/
-│   └── fonts/
-├── tests/
-│   ├── test_agent_manager.py
-│   └── test_persistence.py
-└── build/
-    ├── build.spec
-    └── build.sh
+├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── api/
+│       │   └── agents.js
+│       ├── components/
+│       │   ├── AgentCard.jsx
+│       │   ├── LogPanel.jsx
+│       │   ├── MetricsChart.jsx
+│       │   ├── Sidebar.jsx
+│       │   └── StatusDot.jsx
+│       ├── pages/
+│       │   ├── Dashboard.jsx
+│       │   └── AgentDetail.jsx
+│       ├── hooks/
+│       │   └── usePolling.js
+│       ├── styles/
+│       │   ├── variables.css
+│       │   ├── global.css
+│       │   └── components/
+│       │       ├── AgentCard.css
+│       │       ├── LogPanel.css
+│       │       └── Sidebar.css
+│       └── utils/
+│           └── format.js
+│
+├── backend/
+│   ├── main.py
+│   ├── requirements.txt
+│   └── app/
+│       ├── config.py
+│       ├── api/
+│       │   ├── routes_agents.py
+│       │   └── routes_logs.py
+│       ├── core/
+│       │   ├── agent_manager.py
+│       │   ├── agent_client.py
+│       │   └── scheduler.py
+│       ├── models/
+│       │   └── agent.py
+│       └── storage/
+│           └── persistence.py
+│   └── tests/
+│       ├── test_agent_manager.py
+│       └── test_persistence.py
+│
+└── context/
+    ├── PROJECT_STRUCTURE.md
+    └── STYLE_GUIDE.md
 ```
 
 ## File and folder reference
 
-### Root
+### `frontend/`
+
+React application (built with Vite). Browser-only — no Tauri/Electron wrapper at this stage.
 
 | Path | Purpose |
 |---|---|
-| `main.py` | Entry point. Creates the tkinter root window and launches the main App class from `app/ui/main_window.py`. Run with `python3 main.py`. |
-| `requirements.txt` | Python package dependencies (e.g. `customtkinter`, `requests`, `matplotlib`). |
+| `frontend/index.html` | HTML entry point Vite injects the React app into. |
+| `frontend/package.json` | Frontend dependencies and scripts (`dev`, `build`). |
+| `frontend/vite.config.js` | Vite build/dev-server configuration, including backend proxy setup for local development. |
+| `frontend/src/main.jsx` | React entry point — mounts `App.jsx` into the DOM. |
+| `frontend/src/App.jsx` | Root component. Defines routing/layout (sidebar + page content) and top-level polling setup. |
 
-### `app/`
+#### `frontend/src/api/`
 
-Top-level Python package containing all application source code.
-
-| Path | Purpose |
-|---|---|
-| `app/config.py` | Global constants and settings: API URLs, refresh/polling intervals, file paths, default values. Single source of truth for configuration — no hardcoded values elsewhere. |
-
-### `app/ui/`
-
-All visual/presentation code. Contains tkinter (or customtkinter) window and widget definitions. Should contain **no** direct agent communication logic — only calls into `app/core/`.
+All backend communication lives here. Components never call `fetch`/`axios` directly.
 
 | Path | Purpose |
 |---|---|
-| `app/ui/main_window.py` | Root application window/class. Defines overall layout (sidebar, main panel) and instantiates widgets. |
-| `app/ui/theme.py` | Shared visual constants: colors, fonts, spacing, padding. Import from here rather than hardcoding style values in widgets. |
-| `app/ui/widgets/agent_card.py` | Reusable widget displaying a single agent's status (name, state, key metrics). |
-| `app/ui/widgets/log_panel.py` | Scrolling panel for displaying agent logs/output in real time. |
-| `app/ui/widgets/metrics_chart.py` | Embedded chart widget (matplotlib/plotly) for visualizing agent metrics over time. |
-| `app/ui/widgets/sidebar.py` | Navigation/agent-list sidebar widget. |
+| `frontend/src/api/agents.js` | Functions for calling agent-related backend endpoints (`getAgents`, `startAgent`, `stopAgent`, `getAgentLogs`, etc.). Returns parsed JSON, throws on error. |
 
-### `app/core/`
+#### `frontend/src/components/`
 
-Non-visual application logic. This is the layer that actually interacts with agents. Independent of tkinter — could be reused with a different UI framework.
+Reusable, presentational UI pieces. One component per file. Components receive data via props — they don't fetch data themselves (pages do that and pass it down).
 
 | Path | Purpose |
 |---|---|
-| `app/core/agent_manager.py` | Manages local agent process lifecycle: start, stop, restart, and monitor agent subprocesses. |
-| `app/core/agent_client.py` | HTTP/WebSocket client for communicating with agents that run as remote/local services (as opposed to local subprocesses). |
-| `app/core/scheduler.py` | Background polling/refresh loop. Since tkinter's mainloop is single-threaded, this handles periodic agent-status updates via a background thread or `root.after()`, without blocking the UI. |
+| `frontend/src/components/AgentCard.jsx` | Displays a single agent: status dot, name, key metrics, action buttons. |
+| `frontend/src/components/LogPanel.jsx` | Scrollable panel rendering agent log lines. |
+| `frontend/src/components/MetricsChart.jsx` | Chart component visualizing agent metrics over time. |
+| `frontend/src/components/Sidebar.jsx` | Navigation sidebar listing agents/sections. |
+| `frontend/src/components/StatusDot.jsx` | Small colored status indicator, reused across `AgentCard` and elsewhere. Single source of truth for status → color mapping. |
 
-### `app/models/`
+#### `frontend/src/pages/`
 
-Plain data structures shared across the app. No logic beyond basic validation/serialization.
-
-| Path | Purpose |
-|---|---|
-| `app/models/agent.py` | Data class representing an agent (id, name, status, metrics, last-updated timestamp, etc.). Used by both `core/` and `ui/`. |
-
-### `app/storage/`
-
-Local persistence layer.
+Top-level views mapped to routes/sections. Pages own data-fetching (via `api/` + `hooks/usePolling`) and pass data down to `components/`.
 
 | Path | Purpose |
 |---|---|
-| `app/storage/persistence.py` | Save/load application state to disk (JSON or SQLite) — e.g. agent list, dashboard settings, historical metrics. |
+| `frontend/src/pages/Dashboard.jsx` | Main view — grid/list of all `AgentCard`s. |
+| `frontend/src/pages/AgentDetail.jsx` | Detail view for a single agent — logs, metrics, controls. |
 
-### `assets/`
+#### `frontend/src/hooks/`
 
-Static, non-code resources.
-
-| Path | Purpose |
-|---|---|
-| `assets/icons/` | App and UI icons (e.g. `.png`, `.icns` for macOS app icon). |
-| `assets/fonts/` | Custom font files, if not relying on system fonts. |
-
-### `tests/`
-
-Unit tests, mirroring the `app/core/` and `app/storage/` modules. UI code is generally not unit tested directly.
+Shared React hooks.
 
 | Path | Purpose |
 |---|---|
-| `tests/test_agent_manager.py` | Tests for `app/core/agent_manager.py`. |
-| `tests/test_persistence.py` | Tests for `app/storage/persistence.py`. |
+| `frontend/src/hooks/usePolling.js` | Generic polling hook: takes a fetch function and interval, returns latest data + loading/error state. Used by pages instead of each rolling its own `setInterval`. |
 
-### `build/`
+#### `frontend/src/styles/`
 
-Packaging configuration, kept separate from source code.
+Plain CSS, no CSS-in-JS or Tailwind. See `STYLE_GUIDE.md` for full conventions.
 
 | Path | Purpose |
 |---|---|
-| `build/build.spec` | PyInstaller spec file defining how to bundle the app into a macOS `.app`. |
-| `build/build.sh` | Shell script to run the packaging/build process. |
+| `frontend/src/styles/variables.css` | CSS custom properties: colors, spacing, radius, typography, transitions. Single source of truth — imported globally. |
+| `frontend/src/styles/global.css` | Base/reset styles, body defaults, typography defaults. |
+| `frontend/src/styles/components/*.css` | One CSS file per component, named to match (e.g. `AgentCard.jsx` → `AgentCard.css`). Imported directly in the matching component file. |
+
+#### `frontend/src/utils/`
+
+| Path | Purpose |
+|---|---|
+| `frontend/src/utils/format.js` | Formatting helpers (timestamps, durations, numbers) shared across components. |
+
+### `backend/`
+
+FastAPI application exposing agent logic as a REST API.
+
+| Path | Purpose |
+|---|---|
+| `backend/main.py` | FastAPI app entry point. Creates the app instance, registers routers, configures CORS for local frontend dev. Run with `uvicorn main:app --reload`. |
+| `backend/requirements.txt` | Backend Python dependencies (`fastapi`, `uvicorn`, etc.). |
+| `backend/app/config.py` | Global settings: polling intervals, storage paths, CORS origins. Single source of truth for backend configuration. |
+
+#### `backend/app/api/`
+
+Route definitions only — no business logic. Routes call into `app/core/` and return responses.
+
+| Path | Purpose |
+|---|---|
+| `backend/app/api/routes_agents.py` | Endpoints for listing agents, getting status, start/stop actions. |
+| `backend/app/api/routes_logs.py` | Endpoints for fetching agent log output. |
+
+#### `backend/app/core/`
+
+Business logic. No FastAPI/HTTP-specific code here — this layer is framework-agnostic and could be reused outside the API.
+
+| Path | Purpose |
+|---|---|
+| `backend/app/core/agent_manager.py` | Manages local agent process lifecycle: start, stop, restart, monitor subprocesses. |
+| `backend/app/core/agent_client.py` | Client for communicating with agents running as separate services (if applicable). |
+| `backend/app/core/scheduler.py` | Background refresh logic — periodically updates agent status/metrics so API reads are fast (not blocking on live agent calls). |
+
+#### `backend/app/models/`
+
+| Path | Purpose |
+|---|---|
+| `backend/app/models/agent.py` | Pydantic models for agent data — used for both internal state and API request/response schemas. |
+
+#### `backend/app/storage/`
+
+| Path | Purpose |
+|---|---|
+| `backend/app/storage/persistence.py` | Save/load state to disk (JSON or SQLite) — agent configs, historical metrics. |
+
+#### `backend/tests/`
+
+| Path | Purpose |
+|---|---|
+| `backend/tests/test_agent_manager.py` | Tests for `app/core/agent_manager.py`. |
+| `backend/tests/test_persistence.py` | Tests for `app/storage/persistence.py`. |
+
+### `context/`
+
+This folder. Contains reference documents for AI agents working on the codebase — not application code.
+
+| Path | Purpose |
+|---|---|
+| `context/PROJECT_STRUCTURE.md` | This file. |
+| `context/STYLE_GUIDE.md` | Visual/UI conventions for the frontend. |
 
 ## Conventions for AI agents editing this codebase
 
-- New UI components go in `app/ui/widgets/`, one class per file.
-- New agent-communication logic goes in `app/core/`, not `app/ui/`.
-- New shared data structures go in `app/models/`.
-- Never hardcode colors/fonts in widget files — reference `app/ui/theme.py`.
-- Never hardcode config values (URLs, intervals) — reference `app/config.py`.
-- Each `app/` subpackage should have an `__init__.py` (already present) to remain importable.
+- New UI pieces go in `frontend/src/components/` (reusable) or `frontend/src/pages/` (route-level), never both mixed in one file.
+- Components do not fetch data directly — data-fetching happens in `pages/` via `api/` + `usePolling`, then passed down as props.
+- New backend endpoints go in `backend/app/api/`; the actual logic they call goes in `backend/app/core/` — routes stay thin.
+- Every component gets its own CSS file in `frontend/src/styles/components/`, named to match. No inline `style={}` props except for dynamic values that genuinely can't be a CSS class (see `STYLE_GUIDE.md`).
+- Never hardcode colors, spacing, or radius values — use the CSS custom properties defined in `frontend/src/styles/variables.css`.
+- Never hardcode config values (API base URL, polling intervals) — reference `backend/app/config.py` on the backend and a single frontend config constant (see `STYLE_GUIDE.md` / future `frontend/src/config.js` if introduced).
